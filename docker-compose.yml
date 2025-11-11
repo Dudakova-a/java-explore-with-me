@@ -1,15 +1,16 @@
+version: '3.8'
 services:
-  stats-db:
-    image: postgres:16.1
-    container_name: stats-db
+  ewm-db:
+    image: postgres:13
+    container_name: ewm-db
+    ports:
+      - "5434:5432"
     environment:
-      POSTGRES_DB: stats
+      POSTGRES_DB: ewm
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-    ports:
-      - "5433:5432"
     volumes:
-      - stats_db_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - app-network
     healthcheck:
@@ -18,61 +19,51 @@ services:
       timeout: 5s
       retries: 5
 
+  stats-db:
+    image: postgres:13
+    container_name: stats-db
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: stats
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - stats_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
   stats-server:
     build: ./stats-server
     container_name: stats-server
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://stats-db:5432/stats
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: password
-      SERVER_PORT: 9090
     ports:
       - "9090:9090"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://stats-db:5432/stats
     depends_on:
       - stats-db
     networks:
       - app-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/actuator/health"]
-      interval: 3s
-      timeout: 2s
-      retries: 20
-      start_period: 10s
 
-  ewm-db:
-    image: postgres:16.1
-    container_name: ewm-db
+  ewm-service:
+    build: ./ewm-service
+    container_name: ewm-service
     environment:
-      POSTGRES_DB: ewm
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/ewm
+      STATS_SERVER_URL: http://stats-server:9090
+      SERVER_PORT: 8080
     ports:
-      - "5432:5432"
-    volumes:
-      - ewm_db_data:/var/lib/postgresql/data
+      - "8080:8080"
+    depends_on:
+      - ewm-db
+      - stats-server
     networks:
       - app-network
 
-
-  # ewm-service:
-   # build: ./ewm-service
-   # container_name: ewm-service
-   # environment:
-    #  SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/ewm
-    #  STATS_SERVER_URL: http://stats-server:9090
-    #  SERVER_PORT: 8080
-    #ports:
-   #   - "8080:8080"
-   # depends_on:
-   #   - ewm-db
-   #   - stats-server
-  #  networks:
-    #  - app-network
+volumes:
+  postgres_data:
+  stats_data:
 
 networks:
   app-network:
     driver: bridge
-
-volumes:
-  stats_db_data:
-  ewm_db_data:
