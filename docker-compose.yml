@@ -32,6 +32,11 @@ services:
       - stats_data:/var/lib/postgresql/data
     networks:
       - app-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   stats-server:
     build: ./stats-server
@@ -40,10 +45,18 @@ services:
       - "9090:9090"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://stats-db:5432/stats
+      STATS_SERVER_URL: http://stats-server:9090
     depends_on:
-      - stats-db
+      stats-db:
+        condition: service_healthy
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
 
   ewm-service:
     build: ./ewm-service
@@ -51,14 +64,21 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://ewm-db:5432/ewm
       STATS_SERVER_URL: http://stats-server:9090
-      SERVER_PORT: 8080
     ports:
       - "8080:8080"
     depends_on:
-      - ewm-db
-      - stats-server
+      ewm-db:
+        condition: service_healthy
+      stats-server:
+        condition: service_healthy
     networks:
       - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
 
 volumes:
   postgres_data:
