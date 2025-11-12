@@ -3,7 +3,9 @@ package ru.practicum.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,35 +57,14 @@ public class CategoryServiceImpl implements CategoryService {
     public List<CategoryDto> getCategories(int from, int size) {
         log.info("Getting categories with from: {}, size: {}", from, size);
 
-        List<Category> allCategories = categoryRepository.findAll(Sort.by("id"));
+        Pageable pageable = PageRequest.of(from / size, size, Sort.by("id"));
+        Page<Category> categoryPage = categoryRepository.findAll(pageable);
 
-        // Если запрашивают первые 1000 категорий, убедимся что включаем последнюю созданную
-        if (from == 0) {
-            Long maxId = allCategories.stream()
-                    .map(Category::getId)
-                    .max(Long::compareTo)
-                    .orElse(0L);
-
-            // Если максимальный ID больше 1000, расширяем лимит чтобы включить его
-            if (maxId > 1000 && size == 1000) {
-                size = maxId.intValue() + 1; // Включаем все до максимального ID
-                log.info("Adjusted size to {} to include all categories up to id {}", size, maxId);
-            }
-        }
-
-        List<Category> paginatedCategories = allCategories.stream()
-                .skip(from)
-                .limit(size)
-                .collect(Collectors.toList());
-
-        List<CategoryDto> result = paginatedCategories.stream()
+        List<CategoryDto> result = categoryPage.getContent().stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
 
-        log.info("Returning {} categories, max id: {}",
-                result.size(),
-                result.stream().map(CategoryDto::getId).max(Long::compareTo).orElse(0L));
-
+        log.info("Returning {} categories", result.size());
         return result;
     }
 
@@ -141,21 +122,9 @@ public class CategoryServiceImpl implements CategoryService {
             return null;
         }
 
-        // Проверяем что у категории есть ID и имя
-        if (category.getId() == null) {
-            log.warn("Category has null ID: {}", category);
-            return null;
-        }
-
-        if (category.getName() == null) {
-            log.warn("Category has null name, id: {}", category.getId());
-            return null;
-        }
-
         return CategoryDto.builder()
                 .id(category.getId())
                 .name(category.getName())
                 .build();
     }
-
 }

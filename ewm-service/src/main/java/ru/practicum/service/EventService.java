@@ -4,14 +4,15 @@ import ru.practicum.dto.*;
 import org.springframework.data.domain.Pageable;
 
 import jakarta.servlet.http.HttpServletRequest;
+import ru.practicum.model.Event;
 
-import java.time.LocalDateTime;
+
 import java.util.List;
+import java.util.Map;
 
 public interface EventService {
 
-
-    EventFullDto createEvent(Long userId, NewEventDto newEventDto, HttpServletRequest request);
+    EventFullDto createEvent(Long userId, NewEventDto newEventDto);
 
     List<EventShortDto> getUserEvents(Long userId, Pageable pageable);
 
@@ -19,17 +20,15 @@ public interface EventService {
 
     EventFullDto updateEventByUser(Long userId, Long eventId, UpdateEventUserRequest updateRequest);
 
-    List<EventFullDto> getAdminEvents(List<Long> users, List<String> states, List<Long> categories,
-                                      LocalDateTime rangeStart, LocalDateTime rangeEnd, Pageable pageable);
+    // НОВЫЙ метод с DTO для админского поиска
+    List<EventFullDto> getAdminEvents(AdminEventSearchRequest searchRequest);
 
     EventFullDto updateEventByAdmin(Long eventId, UpdateEventAdminRequest updateRequest);
 
-    // ИЗМЕНЕНИЕ: Добавляем HttpServletRequest
-    List<EventShortDto> getPublicEvents(String text, List<Long> categories, Boolean paid,
-                                        LocalDateTime rangeStart, LocalDateTime rangeEnd,
-                                        Boolean onlyAvailable, String sort, Pageable pageable,
-                                        HttpServletRequest request);
+    Map<Long, Long> getViewsCount(List<Event> events);
 
-    // ИЗМЕНЕНИЕ: Добавляем HttpServletRequest
+    //  новый метод с DTO для публичного поиска
+    List<EventShortDto> getPublicEvents(PublicEventSearchRequest searchRequest, HttpServletRequest request);
+
     EventFullDto getPublicEventById(Long eventId, HttpServletRequest request);
 }

@@ -47,7 +47,7 @@ public class EventServiceImpl implements EventService {
 
     @Override
     @Transactional
-    public EventFullDto createEvent(Long userId, NewEventDto newEventDto, HttpServletRequest request) {
+    public EventFullDto createEvent(Long userId, NewEventDto newEventDto) {
         log.info("Creating new event for user id: {}", userId);
 
         User user = userRepository.findById(userId)
@@ -83,7 +83,6 @@ public class EventServiceImpl implements EventService {
                 .state(EventState.PENDING)
                 .createdOn(LocalDateTime.now())
                 .confirmedRequests(0)
-                .views(0L)
                 .lat(newEventDto.getLocation().getLat())
                 .lon(newEventDto.getLocation().getLon())
                 .build();
@@ -179,13 +178,19 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public List<EventFullDto> getAdminEvents(List<Long> users, List<String> states, List<Long> categories,
-                                             LocalDateTime rangeStart, LocalDateTime rangeEnd, Pageable pageable) {
-        log.info("Getting events for admin with filters");
+    public List<EventFullDto> getAdminEvents(AdminEventSearchRequest searchRequest) {
+        log.info("Getting events for admin with filters: {}", searchRequest);
 
         // Используем Specification вместо @Query
-        Specification<Event> spec = buildAdminSpecification(users, states, categories, rangeStart, rangeEnd);
-        Page<Event> events = eventRepository.findAll(spec, pageable);
+        Specification<Event> spec = buildAdminSpecification(
+                searchRequest.getUsers(),
+                searchRequest.getStates(),
+                searchRequest.getCategories(),
+                searchRequest.getRangeStart(),
+                searchRequest.getRangeEnd()
+        );
+
+        Page<Event> events = eventRepository.findAll(spec, searchRequest.getPageable());
 
         Map<Long, Long> confirmedRequests = getConfirmedRequestsCount(events.getContent());
         Map<Long, Long> views = getViewsCount(events.getContent());
@@ -280,15 +285,21 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public List<EventShortDto> getPublicEvents(String text, List<Long> categories, Boolean paid,
-                                               LocalDateTime rangeStart, LocalDateTime rangeEnd,
-                                               Boolean onlyAvailable, String sort, Pageable pageable,
-                                               HttpServletRequest request) {
-        log.info("Public: поиск событий text='{}', categories={}, paid={}", text, categories, paid);
+    public List<EventShortDto> getPublicEvents(PublicEventSearchRequest searchRequest, HttpServletRequest request) {
+        log.info("Public: поиск событий text='{}', categories={}, paid={}",
+                searchRequest.getText(), searchRequest.getCategories(), searchRequest.getPaid());
 
-        // ИСПОЛЬЗУЕМ Specification ДЛЯ ФИЛЬТРАЦИИ
-        Specification<Event> spec = buildPublicSpecification(text, categories, paid, rangeStart, rangeEnd, onlyAvailable);
-        List<Event> events = eventRepository.findAll(spec, pageable).getContent();
+        // Используем Specification для фильтрации
+        Specification<Event> spec = buildPublicSpecification(
+                searchRequest.getText(),
+                searchRequest.getCategories(),
+                searchRequest.getPaid(),
+                searchRequest.getRangeStart(),
+                searchRequest.getRangeEnd(),
+                searchRequest.getOnlyAvailable()
+        );
+
+        List<Event> events = eventRepository.findAll(spec, searchRequest.getPageable()).getContent();
 
         saveEndpointHit(request, "/events");
 
@@ -301,9 +312,10 @@ public class EventServiceImpl implements EventService {
                         views.getOrDefault(event.getId(), 0L)))
                 .collect(Collectors.toList());
 
-        if ("VIEWS".equals(sort)) {
+        // Сортировка
+        if ("VIEWS".equals(searchRequest.getSort())) {
             result.sort(Comparator.comparing(EventShortDto::getViews).reversed());
-        } else if ("EVENT_DATE".equals(sort)) {
+        } else if ("EVENT_DATE".equals(searchRequest.getSort())) {
             result.sort(Comparator.comparing(EventShortDto::getEventDate));
         }
 
@@ -472,7 +484,8 @@ public class EventServiceImpl implements EventService {
         return counts;
     }
 
-    private Map<Long, Long> getViewsCount(List<Event> events) {
+    @Override
+    public Map<Long, Long> getViewsCount(List<Event> events) {
         if (events.isEmpty()) {
             return new HashMap<>();
         }
@@ -481,9 +494,9 @@ public class EventServiceImpl implements EventService {
                 .map(event -> "/events/" + event.getId())
                 .collect(Collectors.toList());
 
-
-        LocalDateTime start = LocalDateTime.now().minusYears(10);
-        LocalDateTime end = LocalDateTime.now().plusYears(10);
+        // ИСПРАВЛЕНИЕ: получаем дату публикации самого раннего события
+        LocalDateTime start = getEarliestPublicationDate(events);
+        LocalDateTime end = LocalDateTime.now();
 
         try {
             List<ViewStats> stats = statsClient.getStats(start, end, uris, true);
@@ -501,13 +514,21 @@ public class EventServiceImpl implements EventService {
             return views;
         } catch (Exception e) {
             log.error("Error getting views count from stats service", e);
-
             Map<Long, Long> fallback = new HashMap<>();
             for (Event event : events) {
                 fallback.put(event.getId(), 0L);
             }
             return fallback;
         }
+    }
+
+    // НОВЫЙ метод для получения самой ранней даты публикации
+    private LocalDateTime getEarliestPublicationDate(List<Event> events) {
+        return events.stream()
+                .filter(event -> event.getPublishedOn() != null) // только опубликованные события
+                .map(Event::getPublishedOn)
+                .min(LocalDateTime::compareTo)
+                .orElse(LocalDateTime.now().minusYears(1)); // fallback: год назад, если нет опубликованных
     }
 
     private Long extractEventIdFromUri(String uri) {

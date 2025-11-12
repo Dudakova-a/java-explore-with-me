@@ -14,9 +14,7 @@ import ru.practicum.model.Event;
 import ru.practicum.repository.CompilationRepository;
 import ru.practicum.repository.EventRepository;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,6 +25,7 @@ public class CompilationServiceImpl implements CompilationService {
 
     private final CompilationRepository compilationRepository;
     private final EventRepository eventRepository;
+    private final EventService eventService; // ДОБАВИТЬ для получения статистики
 
     @Override
     @Transactional
@@ -62,11 +61,9 @@ public class CompilationServiceImpl implements CompilationService {
     @Override
     @Transactional
     public CompilationDto updateCompilation(Long compId, UpdateCompilationRequest updateRequest) {
-        // Находим подборку
         Compilation compilation = compilationRepository.findById(compId)
                 .orElseThrow(() -> new NotFoundException("Подборка с id=" + compId + " не найдена"));
 
-        // Обновляем поля, если они предоставлены в запросе
         if (updateRequest.getTitle() != null && !updateRequest.getTitle().isBlank()) {
             compilation.setTitle(updateRequest.getTitle());
         }
@@ -81,7 +78,6 @@ public class CompilationServiceImpl implements CompilationService {
             compilation.setEvents(events);
         }
 
-        // Сохраняем обновленную подборку
         Compilation updatedCompilation = compilationRepository.save(compilation);
         log.info("Обновлена подборка с id={}", compId);
 
@@ -117,27 +113,30 @@ public class CompilationServiceImpl implements CompilationService {
     }
 
     private CompilationDto mapToCompilationDto(Compilation compilation) {
+        // Получаем все события из подборки
+        List<Event> events = new ArrayList<>(compilation.getEvents());
+
+        // Получаем статистику просмотров для всех событий
+        Map<Long, Long> views = eventService.getViewsCount(events);
         // Преобразуем Set<Event> в List<EventShortDto>
-        List<EventShortDto> eventDtos = compilation.getEvents().stream()
-                .map(this::mapToEventShortDto)
+        List<EventShortDto> eventDtos = events.stream()
+                .map(event -> mapToEventShortDto(event, views.getOrDefault(event.getId(), 0L)))
                 .collect(Collectors.toList());
 
         return CompilationDto.builder()
                 .id(compilation.getId())
                 .title(compilation.getTitle())
                 .pinned(compilation.getPinned())
-                .events(eventDtos) // Теперь List<EventShortDto>
+                .events(eventDtos)
                 .build();
     }
 
-    private EventShortDto mapToEventShortDto(Event event) {
-        // Создаем CategoryDto
+    private EventShortDto mapToEventShortDto(Event event, Long views) {
         CategoryDto categoryDto = CategoryDto.builder()
                 .id(event.getCategory().getId())
                 .name(event.getCategory().getName())
                 .build();
 
-        // Создаем UserShortDto
         UserShortDto userShortDto = UserShortDto.builder()
                 .id(event.getInitiator().getId())
                 .name(event.getInitiator().getName())
@@ -151,7 +150,7 @@ public class CompilationServiceImpl implements CompilationService {
                 .eventDate(event.getEventDate())
                 .initiator(userShortDto)
                 .paid(event.getPaid())
-                .views(event.getViews() != null ? event.getViews() : 0L)
+                .views(views)
                 .confirmedRequests(event.getConfirmedRequests() != null ? event.getConfirmedRequests() : 0L)
                 .build();
     }
