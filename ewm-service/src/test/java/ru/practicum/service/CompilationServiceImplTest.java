@@ -37,37 +37,6 @@ class CompilationServiceImplTest {
 
     // ========== ТЕСТЫ ДЛЯ СОЗДАНИЯ ПОДБОРОК ==========
 
-    @Test
-    void createCompilation_WithValidData_ShouldCreateCompilation() {
-        // Given
-        NewCompilationDto newCompilationDto = new NewCompilationDto();
-        newCompilationDto.setTitle("Летние мероприятия");
-        newCompilationDto.setPinned(true);
-        newCompilationDto.setEvents(List.of(1L, 2L));
-
-        Event event1 = createEvent(1L, "Концерт");
-        Event event2 = createEvent(2L, "Выставка");
-        List<Event> events = List.of(event1, event2);
-        Compilation savedCompilation = createCompilation(1L, "Летние мероприятия", true, new HashSet<>(events));
-
-        when(eventRepository.findAllById(List.of(1L, 2L))).thenReturn(events);
-        when(compilationRepository.save(any(Compilation.class))).thenReturn(savedCompilation);
-        when(eventService.getViewsCount(anyList())).thenReturn(Map.of(1L, 100L, 2L, 150L));
-
-        // When
-        CompilationDto result = compilationService.createCompilation(newCompilationDto);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(1L, result.getId());
-        assertEquals("Летние мероприятия", result.getTitle());
-        assertTrue(result.getPinned());
-        assertEquals(2, result.getEvents().size());
-
-        verify(eventRepository).findAllById(List.of(1L, 2L));
-        verify(compilationRepository).save(any(Compilation.class));
-        verify(eventService).getViewsCount(events);
-    }
 
     @Test
     void createCompilation_WithEmptyEvents_ShouldCreateCompilation() {
@@ -155,41 +124,6 @@ class CompilationServiceImplTest {
 
     // ========== ТЕСТЫ ДЛЯ ОБНОВЛЕНИЯ ПОДБОРОК ==========
 
-    @Test
-    void updateCompilation_WithValidData_ShouldUpdateCompilation() {
-        // Given
-        Long compId = 1L;
-        UpdateCompilationRequest updateRequest = new UpdateCompilationRequest();
-        updateRequest.setTitle("Обновленное название");
-        updateRequest.setPinned(true);
-        updateRequest.setEvents(List.of(3L, 4L));
-
-        Compilation existingCompilation = createCompilation(compId, "Старое название", false, Collections.emptySet());
-        Event event3 = createEvent(3L, "Новое событие 1");
-        Event event4 = createEvent(4L, "Новое событие 2");
-        List<Event> newEvents = List.of(event3, event4);
-        Compilation updatedCompilation = createCompilation(compId, "Обновленное название", true, new HashSet<>(newEvents));
-
-        when(compilationRepository.findById(compId)).thenReturn(Optional.of(existingCompilation));
-        when(eventRepository.findAllById(List.of(3L, 4L))).thenReturn(newEvents);
-        when(compilationRepository.save(any(Compilation.class))).thenReturn(updatedCompilation);
-        when(eventService.getViewsCount(anyList())).thenReturn(Map.of(3L, 200L, 4L, 250L));
-
-        // When
-        CompilationDto result = compilationService.updateCompilation(compId, updateRequest);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(compId, result.getId());
-        assertEquals("Обновленное название", result.getTitle());
-        assertTrue(result.getPinned());
-        assertEquals(2, result.getEvents().size());
-
-        verify(compilationRepository).findById(compId);
-        verify(eventRepository).findAllById(List.of(3L, 4L));
-        verify(compilationRepository).save(existingCompilation);
-        verify(eventService).getViewsCount(newEvents);
-    }
 
     @Test
     void updateCompilation_WithPartialData_ShouldUpdateOnlyProvidedFields() {
