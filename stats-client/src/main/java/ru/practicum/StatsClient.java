@@ -12,10 +12,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Collections;
 
 @Slf4j
 @RequiredArgsConstructor
 public class StatsClient {
+
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -27,7 +29,8 @@ public class StatsClient {
                 endpointHit.getApp(), endpointHit.getUri(), endpointHit.getIp(), endpointHit.getTimestamp());
 
         try {
-            ResponseEntity<Object> response = restTemplate.postForEntity(serverUrl + "/hit", endpointHit, Object.class);
+            String url = serverUrl + "/hit";
+            ResponseEntity<Object> response = restTemplate.postForEntity(url, endpointHit, Object.class);
             log.info("Hit successfully sent to stats service. Response status: {}", response.getStatusCode());
         } catch (Exception e) {
             log.error("Error sending hit to stats service: {}", e.getMessage(), e);
@@ -40,10 +43,22 @@ public class StatsClient {
                 start, end, uris, unique);
 
         try {
+
+            LocalDateTime cleanStart = start.withNano(0);
+            LocalDateTime cleanEnd = end.withNano(0);
+
+
+            String startStr = cleanStart.format(FORMATTER);
+            String endStr = cleanEnd.format(FORMATTER);
+
+
             UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(serverUrl + "/stats")
-                    .queryParam("start", start.format(FORMATTER))
-                    .queryParam("end", end.format(FORMATTER))
-                    .queryParam("unique", unique != null ? unique : false);
+                    .queryParam("start", startStr)
+                    .queryParam("end", endStr);
+
+            if (unique != null) {
+                builder.queryParam("unique", unique);
+            }
 
             if (uris != null && !uris.isEmpty()) {
                 for (String uri : uris) {
@@ -51,19 +66,22 @@ public class StatsClient {
                 }
             }
 
-            String url = builder.toUriString();
-            log.debug("Built stats request URL: {}", url);
+
+            String url = builder.build().toUriString();
+            log.info("Final stats URL: {}", url);
 
             ResponseEntity<ViewStats[]> response = restTemplate.getForEntity(url, ViewStats[].class);
-            log.info("Stats request completed. Response status: {}, found {} records",
-                    response.getStatusCode(), response.getBody() != null ? response.getBody().length : 0);
 
             ViewStats[] body = response.getBody();
-            return body != null ? Arrays.asList(body) : List.of();
+            List<ViewStats> result = body != null ? Arrays.asList(body) : Collections.emptyList();
+
+            log.info("Stats request successful. Found {} records", result.size());
+            return result;
 
         } catch (Exception e) {
-            log.error("Error getting stats from service: {}", e.getMessage(), e);
-            return List.of();
+            log.error("Error getting stats from service: {} : \"{}\"",
+                    e.getMessage(), e.toString(), e);
+            return Collections.emptyList();
         }
     }
 }

@@ -32,14 +32,6 @@ public class StatsServiceImpl implements StatsService {
     public List<ViewStats> getStats(LocalDateTime start, LocalDateTime end,
                                     List<String> uris, Boolean unique) {
 
-        // Валидация параметров
-        if (start == null || end == null) {
-            throw new IllegalArgumentException("Start and end dates are required");
-        }
-
-        if (start.isAfter(end)) {
-            throw new IllegalArgumentException("Start date must be before end date");
-        }
 
         if (uris == null || uris.isEmpty()) {
             if (Boolean.TRUE.equals(unique)) {
