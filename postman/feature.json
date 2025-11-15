@@ -22,6 +22,10 @@
                   "pm.test(\"Response is array\", function () {",
                   "    var jsonData = pm.response.json();",
                   "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
                   "});"
                 ]
               }
@@ -51,7 +55,8 @@
                 }
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "2. Создание комментария (ошибка - пустой текст)",
@@ -62,7 +67,14 @@
                 "exec": [
                   "pm.test(\"Status code is 400\", function () {",
                   "    pm.response.to.have.status(400);",
-                  "});"
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "console.log(\"Response status:\", pm.response.code);",
+                  "console.log(\"Response body:\", pm.response.text());"
                 ]
               }
             }
@@ -90,7 +102,8 @@
                 "comments"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "3. Создание комментария с текстом > 2000 символов",
@@ -101,7 +114,14 @@
                 "exec": [
                   "pm.test(\"Status code is 400\", function () {",
                   "    pm.response.to.have.status(400);",
-                  "});"
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "console.log(\"Response status:\", pm.response.code);",
+                  "console.log(\"Response body:\", pm.response.text());"
                 ]
               }
             }
@@ -129,7 +149,8 @@
                 "comments"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "4. Обновление несуществующего комментария",
@@ -140,7 +161,14 @@
                 "exec": [
                   "pm.test(\"Status code is 404\", function () {",
                   "    pm.response.to.have.status(404);",
-                  "});"
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "console.log(\"Response status:\", pm.response.code);",
+                  "console.log(\"Response body:\", pm.response.text());"
                 ]
               }
             }
@@ -169,7 +197,8 @@
                 "99999"
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "5. Удаление несуществующего комментария",
@@ -180,7 +209,14 @@
                 "exec": [
                   "pm.test(\"Status code is 404\", function () {",
                   "    pm.response.to.have.status(404);",
-                  "});"
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "console.log(\"Response status:\", pm.response.code);",
+                  "console.log(\"Response body:\", pm.response.text());"
                 ]
               }
             }
@@ -200,7 +236,8 @@
                 "99999"
               ]
             }
-          }
+          },
+          "response": []
         }
       ]
     },
@@ -221,7 +258,14 @@
                   "pm.test(\"Response is array\", function () {",
                   "    var jsonData = pm.response.json();",
                   "    pm.expect(jsonData).to.be.an('array');",
-                  "});"
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "console.log(\"Response status:\", pm.response.code);",
+                  "console.log(\"Response body:\", pm.response.text());"
                 ]
               }
             }
@@ -230,13 +274,14 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/admin/moderation?from=0&size=10",
+              "raw": "{{base_url}}/admin/comments/moderation?from=0&size=10",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "admin",
-                "comments"
+                "comments",
+                "moderation"
               ],
               "query": [
                 {
@@ -249,7 +294,8 @@
                 }
               ]
             }
-          }
+          },
+          "response": []
         },
         {
           "name": "2. Модерация несуществующего комментария (ошибка)",
@@ -260,7 +306,14 @@
                 "exec": [
                   "pm.test(\"Status code is 404\", function () {",
                   "    pm.response.to.have.status(404);",
-                  "});"
+                  "});",
+                  "",
+                  "pm.test(\"Response time is acceptable\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "console.log(\"Response status:\", pm.response.code);",
+                  "console.log(\"Response body:\", pm.response.text());"
                 ]
               }
             }
@@ -288,7 +341,8 @@
                 "99999"
               ]
             }
-          }
+          },
+          "response": []
         }
       ]
     }
